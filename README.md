@@ -1,2 +1,2 @@
 # cs50
-Problem sets exercised with C
+CS50 online course problem sets
