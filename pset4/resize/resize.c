@@ -2,21 +2,30 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <ctype.h>
+#include <string.h>
 #include "bmp.h"
 
 int main(int argc, char *argv[])
 {
     // ensure proper usage
-    if (argc != 3)
+    if (argc != 4)
     {
-        fprintf(stderr, "Usage: copy infile outfile\n");
+        fprintf(stderr, "Usage: resize factor infile outfile\n");
         return 1;
     }
 
+    n=atoi(argv[1]));
+
+    if (!isdigit(n) || n<1 || n>100)
+    {
+        fprintf("Factoring number must be a positive integer between (1,100)");
+    }
+
+
     // remember filenames
-    char *infile = argv[1];
-    char *outfile = argv[2];
+    char *infile = argv[2];
+    char *outfile = argv[3];
 
     // open input file
     FILE *inptr = fopen(infile, "r");
@@ -53,6 +62,17 @@ int main(int argc, char *argv[])
         return 4;
     }
 
+    int origWidth = bi.biWidth;
+    int origPadding = (4 - (origWidth * sizeof(RGBTRIPLE)) % 4) % 4;
+
+    bi.biWidth = bi.biWidth * 4;
+    bi.biHeight = bi.biHeight * 4;
+
+    bi.biSizeImage = (bi.biWidth * abs(bi.biHeight) * 3) + padding*abs(bi.biHeight);
+
+    bf.bfSize = bi.biSizeImage + bf.bfOffBits;
+
+
     // write outfile's BITMAPFILEHEADER
     fwrite(&bf, sizeof(BITMAPFILEHEADER), 1, outptr);
 
@@ -66,7 +86,7 @@ int main(int argc, char *argv[])
     for (int i = 0, biHeight = abs(bi.biHeight); i < biHeight; i++)
     {
         // iterate over pixels in scanline
-        for (int j = 0; j < bi.biWidth; j++)
+        for (int j = 0; j < origWidth; j++)
         {
             // temporary storage
             RGBTRIPLE triple;
@@ -75,16 +95,22 @@ int main(int argc, char *argv[])
             fread(&triple, sizeof(RGBTRIPLE), 1, inptr);
 
             // write RGB triple to outfile
-            fwrite(&triple, sizeof(RGBTRIPLE), 1, outptr);
+            for (int k = 0; k < n; n++)
+                fwrite(&triple, sizeof(RGBTRIPLE), 1, outptr);
         }
 
         // skip over padding, if any
-        fseek(inptr, padding, SEEK_CUR);
+        fseek(inptr, origPadding, SEEK_CUR);
 
         // then add it back (to demonstrate how)
         for (int k = 0; k < padding; k++)
         {
             fputc(0x00, outptr);
+            // if i % n is 0, write a new row, else repeat the last row
+            long offset = origWidth*sizeof(RGBTRIPLE) + origPadding;
+            if((i+1) % n != 0)
+            fseek(inptr, -offset, SEEK_CUR);
+
         }
     }
 
